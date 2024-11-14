@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send } from "lucide-react";
+import { Send, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAi = new GoogleGenerativeAI("AIzaSyCRuITZ1xdFLg88b7tE3SBAocobigicU7A"); // Replace with your actual API key
+const genAi = new GoogleGenerativeAI("AIzaSyCRuITZ1xdFLg88b7tE3SBAocobigicU7A");
 const model = genAi.getGenerativeModel({ model: "gemini-1.5-pro" });
 
 function ChatApp() {
@@ -20,17 +20,26 @@ function ChatApp() {
   useEffect(() => {
     scrollToBottom();
     if (!chatSessionRef.current) {
-      chatSessionRef.current = model.startChat({
-        generationConfig: {
-          temperature: 0.9,
-          topK: 1,
-          topP: 1,
-          maxOutputTokens: 2048,
-        },
-        history: [],
-      });
+      startNewChatSession();
     }
   }, [messages]);
+
+  const startNewChatSession = () => {
+    chatSessionRef.current = model.startChat({
+      generationConfig: {
+        temperature: 0.9,
+        topK: 1,
+        topP: 1,
+        maxOutputTokens: 2048,
+      },
+      history: [],
+    });
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    startNewChatSession();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,6 +61,11 @@ function ChatApp() {
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
         fullResponse += chunkText;
+
+        if (chunkText.includes("image_url")) {
+          const imageUrl = chunkText.split("image_url:")[1].trim();
+          fullResponse += `<img src="${imageUrl}" alt="AI generated" />`;
+        }
 
         setMessages((prev) => [
           ...prev.slice(0, -1),
@@ -79,10 +93,16 @@ function ChatApp() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-200">
-      <header className="bg-blue-400 text-white p-4">
+      <header className="bg-blue-400 text-white p-4 flex justify-between items-center">
         <h1 className="text-4xl font-bold text-blue-800 text-center">
-          Gemini Chat
+          Chat AI
         </h1>
+        <button
+          onClick={handleNewChat}
+          className="p-2 rounded-full bg-white text-blue-500 hover:bg-gray-300"
+        >
+          <Plus size={24} />
+        </button>
       </header>
 
       <div className="flex-grow overflow-y-auto">
@@ -109,6 +129,13 @@ function ChatApp() {
                   }`}
                   children={message.text || "Thinking..."}
                   skipHtml={true}
+                />
+              )}
+              {message.text.includes("<img") && (
+                <img
+                  src={message.text.split('src="')[1].split('"')[0]}
+                  alt="AI generated"
+                  className="max-w-full mt-2"
                 />
               )}
             </div>
